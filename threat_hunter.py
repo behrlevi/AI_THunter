@@ -18,24 +18,19 @@ import sys
 from fastapi import Depends, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
-
 app = FastAPI()
 security = HTTPBasic()
-
 class Prompt(BaseModel):
     question: str
-
 # ===== Globals for caching =====
 qa_chain = None
 context = None
 days_range = 1
-
 username="ddc"
 password="macilaci"
 ssh_username = "levente"
 ssh_password = "Ad08ck16"
 remote_host = "10.9.0.52"
-
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     username_match = secrets.compare_digest(credentials.username, username)
     password_match = secrets.compare_digest(credentials.password, password)
@@ -46,7 +41,6 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
-
 def run_daemon():
     import daemon
     log_file_path = "/var/ossec/logs/threat_hunter.log"
@@ -55,11 +49,9 @@ def run_daemon():
         stderr=open(log_file_path, 'a+')
     ):
         uvicorn.run(app, host="0.0.0.0", port=8000)
-
 def load_logs_from_days(past_days=7):
     if remote_host:
         return load_logs_from_remote(remote_host, ssh_username, ssh_password, past_days)
-
     logs = []
     today = datetime.now()
     for i in range(past_days):
@@ -67,13 +59,10 @@ def load_logs_from_days(past_days=7):
         year = day.year
         month_name = day.strftime("%b")
         day_num = day.strftime("%d")
-
         json_path = f"/var/ossec/logs/archives/{year}/{month_name}/ossec-archive-{day_num}.json"
         gz_path = f"/var/ossec/logs/archives/{year}/{month_name}/ossec-archive-{day_num}.json.gz"
-
         file_path = None
         open_func = None
-
         if os.path.exists(json_path) and os.path.getsize(json_path) > 0:
             file_path = json_path
             open_func = open
@@ -83,7 +72,6 @@ def load_logs_from_days(past_days=7):
         else:
             print(f"⚠️ Log file missing or empty: {json_path} / {gz_path}")
             continue
-
         try:
             with open_func(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
                 for line in f:
@@ -101,13 +89,11 @@ def load_logs_from_remote(host, user, password, past_days):
     import paramiko
     logs = []
     today = datetime.now()
-
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(host, username=user, password=password, timeout=10)
         sftp = ssh.open_sftp()
-
         for i in range(past_days):
             day = today - timedelta(days=i)
             year = day.year
@@ -116,9 +102,6 @@ def load_logs_from_remote(host, user, password, past_days):
             base_path = f"/var/ossec/logs/archives/{year}/{month_name}"
             json_path = f"{base_path}/ossec-archive-{day_num}.json"
             gz_path = f"{base_path}/ossec-archive-{day_num}.json.gz"
-
-            print(f"Olvasás a {json_path} fájlból")
-
             remote_file = None
             try:
                 if sftp.stat(json_path).st_size > 0:
@@ -128,7 +111,6 @@ def load_logs_from_remote(host, user, password, past_days):
             except IOError:
                 print(f"⚠️ Remote log not found or unreadable: {json_path} / {gz_path}")
                 continue
-
             if remote_file:
                 try:
                     for line in remote_file:
@@ -147,7 +129,6 @@ def load_logs_from_remote(host, user, password, past_days):
     except Exception as e:
         print(f"❌ Remote connection failed: {e}")
     return logs
-
 def create_vectorstore(logs, embedding_model):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     documents = []
@@ -156,13 +137,11 @@ def create_vectorstore(logs, embedding_model):
         for chunk in splits:
             documents.append(Document(page_content=chunk))
     return FAISS.from_documents(documents, embedding_model)
-
 def initialize_assistant_context():
     return """You are a security analyst performing threat hunting.
 Your task is to analyze logs from Wazuh. You have access to the logs stored in the vector store.
 The objective is to identify potential security threats or any other needs from the user.
 All queries should be interpreted as asking about security events, patterns or other request from the user using the vectorized logs."""
-
 def setup_chain(past_days=7):
     global qa_chain, context, days_range
     days_range = past_days
@@ -171,12 +150,10 @@ def setup_chain(past_days=7):
     if not logs:
         print("❌ No logs found. Skipping chain setup.")
         return
-
     print(f"✅ {len(logs)} logs loaded from the last {past_days} days.")
     print("📦 Creating vectorstore...")
     embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vectorstore = create_vectorstore(logs, embedding_model)
-
     llm = ChatOllama(model="llama3")
     context = initialize_assistant_context()
     qa_chain = ConversationalRetrievalChain.from_llm(
@@ -185,7 +162,6 @@ def setup_chain(past_days=7):
         return_source_documents=False
     )
     print("✅ QA chain initialized successfully.")
-
 def get_stats(logs):
     total_logs = len(logs)
     dates = [datetime.strptime(log.get('timestamp', '')[:10], "%Y-%m-%d") for log in logs if 'timestamp' in log and log.get('timestamp')]
@@ -195,16 +171,12 @@ def get_stats(logs):
         latest = max(dates).strftime("%Y-%m-%d")
         date_range = f" from {earliest} to {latest}"
     return f"Logs loaded: {total_logs}{date_range}"
-
 # ========= WebSocket Chat =========
-
 chat_history = []
-
 @app.websocket("/ws/chat")
 async def websocket_endpoint(websocket: WebSocket):
     global qa_chain, context, chat_history, days_range
     await websocket.accept()
-
     try:
         if not context:
             await websocket.send_json({"role": "bot", "message": "⚠️ Assistant not ready yet. Please wait."})
@@ -213,7 +185,6 @@ async def websocket_endpoint(websocket: WebSocket):
         
         chat_history = [SystemMessage(content=context)]
         await websocket.send_json({"role": "bot", "message": f"👋 Hello! Ask me anything about Wazuh logs.\n(Default date range is {days_range} days.)\nType /help for commands."})
-
         while True:
             data = await websocket.receive_text()
             if not data.strip():
@@ -229,7 +200,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 await websocket.send_json({"role": "bot", "message": help_msg})
                 continue
-
             if data.lower() == "/reload":
                 await websocket.send_json({"role": "bot", "message": f"🔄 Reloading logs for past {days_range} days..."})
                 setup_chain(past_days=days_range)
@@ -239,7 +209,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     await websocket.send_json({"role": "bot", "message": "❌ Reload failed: no logs found or error initializing chain."})
                 continue
-
             if data.lower().startswith("/set days"):
                 try:
                     parts = data.split()
@@ -252,7 +221,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception:
                     await websocket.send_json({"role": "bot", "message": "⚠️ Invalid command format. Use: /set days <number>."})
                 continue
-
             if data.lower() == "/stat":
                 logs = load_logs_from_days(days_range)
                 stats = get_stats(logs)
@@ -262,24 +230,19 @@ async def websocket_endpoint(websocket: WebSocket):
             # Regular question
             chat_history.append(HumanMessage(content=data))
             print(f"🧠 Received question: {data}")
-
             response = qa_chain.invoke({"question": data, "chat_history": chat_history})
             answer = response.get("answer", "").replace("\\n", "\n").strip()
             if not answer:
                 answer = "⚠️ Sorry, I couldn't generate a response."
-
             chat_history.append(SystemMessage(content=answer))
             await websocket.send_json({"role": "bot", "message": answer})
-
     except WebSocketDisconnect:
         print("⚠️ Client disconnected.")
     except Exception as e:
         print(f"❌ Error in websocket: {e}")
         await websocket.send_json({"role": "bot", "message": f"❌ Error: {str(e)}"})
         await websocket.close()
-
 # ======= HTML UI =======
-
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -381,17 +344,13 @@ HTML_PAGE = """
         <button onclick="sendMessage()">Send</button>
     </div>
 </div>
-
 <script>
     const messagesDiv = document.getElementById('messages');
     const userInput = document.getElementById('user-input');
-
     const socket = new WebSocket(`ws://${window.location.host}/ws/chat`);
-
     socket.onopen = () => {
         console.log("✅ WebSocket connected");
     };
-
     socket.onmessage = function(event) {
         const data = JSON.parse(event.data);
         const messageDiv = document.createElement('div');
@@ -400,14 +359,12 @@ HTML_PAGE = """
         messagesDiv.appendChild(messageDiv);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     };
-
     socket.onclose = () => {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', 'bot');
         messageDiv.textContent = '⚠️ Connection closed.';
         messagesDiv.appendChild(messageDiv);
     };
-
     socket.onerror = (error) => {
         console.error("WebSocket error:", error);
         const messageDiv = document.createElement('div');
@@ -415,7 +372,6 @@ HTML_PAGE = """
         messageDiv.textContent = '⚠️ WebSocket error.';
         messagesDiv.appendChild(messageDiv);
     };
-
     function sendMessage() {
         const message = userInput.value.trim();
         if (message && socket.readyState === WebSocket.OPEN) {
@@ -425,13 +381,11 @@ HTML_PAGE = """
             messageDiv.textContent = message;
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
             socket.send(message);
             userInput.value = '';
             userInput.focus();
         }
     }
-
     userInput.addEventListener("keyup", function(event) {
         if (event.key === "Enter") {
             sendMessage();
@@ -441,26 +395,20 @@ HTML_PAGE = """
 </body>
 </html>
 """
-
 @app.get("/", response_class=HTMLResponse)
 async def get(username: str = Depends(authenticate)):
     return HTML_PAGE
-
-
 @app.on_event("startup")
 def on_startup():
     print("🚀 Starting FastAPI app and loading vector store...")
     setup_chain(past_days=days_range)
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--daemon", action="store_true", help="Run as daemon")
     parser.add_argument("-H", "--host", type=str, help="Optional remote host IP address to load logs from")
     args = parser.parse_args()
-
     if args.host:
         remote_host = args.host
-
     if args.daemon:
         run_daemon()
     else:
