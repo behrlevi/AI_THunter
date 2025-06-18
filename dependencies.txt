@@ -1,1 +1,5 @@
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3
+apt install python3 -y
+apt install python3-pip -y
 pip install paramiko python-daemon langchain langchain-community langchain-ollama langchain-huggingface faiss-cpu sentence-transformers transformers pytz hf_xet fastapi uvicorn 'uvicorn[standard]'
