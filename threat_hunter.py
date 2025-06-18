@@ -25,12 +25,12 @@ class Prompt(BaseModel):
 # ===== Globals for caching =====
 qa_chain = None
 context = None
-days_range = 1
-username="ddc"
-password="macilaci"
-ssh_username = "levente"
-ssh_password = "Ad08ck16"
-remote_host = "10.9.0.52"
+days_range = 7
+username="<USERNAME>"
+password="<PASSWORD>"
+ssh_username = "<SSH_USERNAME>"
+ssh_password = "<SSH_PASSWORD>"
+remote_host = None
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     username_match = secrets.compare_digest(credentials.username, username)
     password_match = secrets.compare_digest(credentials.password, password)
