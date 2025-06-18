@@ -18,6 +18,7 @@ import sys
 from fastapi import Depends, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
+import concurrent.futures
 
 app = FastAPI()
 security = HTTPBasic()
@@ -451,17 +452,58 @@ async def get(username: str = Depends(authenticate)):
 def on_startup():
     print("🚀 Starting FastAPI app and loading vector store...")
     setup_chain(past_days=days_range)
+    logs, files = load_logs_parallel(past_days=days_range)
+    print("Processed files:", files)
+    print("Number of logs loaded:", len(logs))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--daemon", action="store_true", help="Run as daemon")
-    parser.add_argument("-H", "--host", type=str, help="Optional remote host IP address to load logs from")
-    args = parser.parse_args()
+def process_log_file(file_path, open_func):
+    logs = []
+    try:
+        with open_func(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        logs.append(json.loads(line.strip()))
+                    except json.JSONDecodeError:
+                        print(f"⚠️ Skipping invalid JSON line in {file_path}")
+    except Exception as e:
+        print(f"⚠️ Error reading {file_path}: {e}")
+    return logs, file_path
 
-    if args.host:
-        remote_host = args.host
+def load_logs_parallel(past_days=7):
+    logs = []
+    files_used = []
+    today = datetime.now()
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for i in range(past_days):
+            day = today - timedelta(days=i)
+            year = day.year
+            month_name = day.strftime("%b")
+            day_num = day.strftime("%d")
+            json_path = f"/var/ossec/logs/archives/{year}/{month_name}/ossec-archive-{day_num}.json"
+            gz_path = f"/var/ossec/logs/archives/{year}/{month_name}/ossec-archive-{day_num}.json.gz"
+            
+            file_path = None
+            open_func = None
+            if os.path.exists(json_path) and os.path.getsize(json_path) > 0:
+                file_path = json_path
+                open_func = open
+            elif os.path.exists(gz_path) and os.path.getsize(gz_path) > 0:
+                file_path = gz_path
+                open_func = gzip.open
+            else:
+                print(f"⚠️ Log file missing or empty: {json_path} / {gz_path}")
+                continue
 
-    if args.daemon:
-        run_daemon()
-    else:
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+            # Submit the file processing job in parallel
+            future = executor.submit(process_log_file, file_path, open_func)
+            futures.append(future)
+        
+        for future in concurrent.futures.as_completed(futures):
+            file_logs, used_file = future.result()
+            logs.extend(file_logs)
+            files_used.append(used_file)
+    
+    return logs, files_used
