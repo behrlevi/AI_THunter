@@ -26,7 +26,7 @@ security = HTTPBasic()
 class Prompt(BaseModel):
     question: str
 
-# ===== Globals for caching =====
+# ===== Globals for caching ===== kódolásokba
 qa_chain = None
 context = None
 days_range = 1
