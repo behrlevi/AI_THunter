@@ -524,4 +524,3 @@ def load_logs_parallel(past_days=7):
             files_used.append(used_file)
     
     return logs, files_used
-#commentek
