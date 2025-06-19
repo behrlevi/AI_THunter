@@ -180,6 +180,18 @@ def get_stats(logs):
         latest = max(dates).strftime("%Y-%m-%d")
         date_range = f" from {earliest} to {latest}"
     return f"Logs loaded: {total_logs}{date_range}"
+
+
+def kerdezz(kerdes):
+    global qa_chain, chat_history
+    if not chat_history:
+        chat_history = [SystemMessage(content=context)]
+    print(f"🧠 A gép kapott egy kérdést: {kerdes}")
+    felelet = qa_chain.invoke({"question": kerdes, "chat_history": chat_history})
+    valasz = felelet.get("answer", "").replace("\\n", "\n").strip()
+    print(f"🤖 A gép válaszolt: {valasz}")
+
+
 # ========= WebSocket Chat =========
 chat_history = []
 @app.websocket("/ws/chat")
@@ -411,6 +423,7 @@ async def get(username: str = Depends(authenticate)):
 def on_startup():
     print("🚀 Starting FastAPI app and loading vector store...")
     setup_chain(past_days=days_range)
+    kerdezz("List ip addresses in the logs!")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--daemon", action="store_true", help="Run as daemon")
