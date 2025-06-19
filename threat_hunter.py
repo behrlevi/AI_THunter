@@ -26,7 +26,7 @@ class Prompt(BaseModel):
 qa_chain = None
 context = None
 days_range = 7
-username="<USERNAME>"
+username="<user>"
 password="<PASSWORD>"
 ssh_username = "<SSH_USERNAME>"
 ssh_password = "<SSH_PASSWORD>"
