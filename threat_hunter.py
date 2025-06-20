@@ -18,6 +18,8 @@ import sys
 from fastapi import Depends, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
+import smtplib, ssl
+
 app = FastAPI()
 security = HTTPBasic()
 class Prompt(BaseModel):
@@ -190,7 +192,29 @@ def kerdezz(kerdes):
     felelet = qa_chain.invoke({"question": kerdes, "chat_history": chat_history})
     valasz = felelet.get("answer", "").replace("\\n", "\n").strip()
     print(f"🤖 A gép válaszolt: {valasz}")
+    
+    # Üzenet küldése emailben
+    smtp_server = config.get("smtp_server")
+    port = config.get("port")
+    smtp_password = config.get("smtp_password")
+    sender_email = config.get("sender_email")
+    receiver_email = config.get("receiver_email")
+    message = valasz
 
+    smtp_context = ssl.create_default_context()
+
+    try:
+        server = smtplib.SMTP(smtp_server,port)
+        server.ehlo() # Can be omitted
+        server.starttls(context=smtp_context) # Secure the connection
+        server.ehlo() # Can be omitted
+        server.login(sender_email, smtp_password)
+        server.sendmail(sender_email, receiver_email, message)
+    except Exception as e:
+        # Print any error messages to stdout
+        print(e)
+    finally:
+        server.quit()
 
 # ========= WebSocket Chat =========
 chat_history = []
