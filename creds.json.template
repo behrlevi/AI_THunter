@@ -1,0 +1,12 @@
+{
+    "username": "<USERNAME>",
+    "password": "<PASSWORD>",
+    "ssh_username": "<SSH_USERNAME>",
+    "ssh_password": "<SSH_PASSWORD>",
+    "remote_host": "<IP_ADDRESS>",
+    "smtp_server": "<SERVER_ULR>",
+    "port": "<SMTP_PORT>",
+    "smtp_password": "<SMTP_PASSWORD>",
+    "sender_email": "<SENDER_E-MAIL_ADDRESS>",
+    "receiver_email": "<RECEIVER_E-MAIL_ADDRESS>"
+}

@@ -1,6 +1,6 @@
 import json
 import os
-import gzip 
+import gzip
 from datetime import datetime, timedelta
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -95,7 +95,7 @@ def load_logs_from_days(past_days=7):
         except Exception as e:
             print(f"⚠️ Error reading {file_path}: {e}")
     return logs
-    
+
 def load_logs_from_remote(host, user, password, past_days):
     import paramiko
     logs = []
@@ -183,7 +183,10 @@ def get_stats(logs):
         date_range = f" from {earliest} to {latest}"
     return f"Logs loaded: {total_logs}{date_range}"
 
-
+'''
+Feltesz egy fixen kódolt kérdést és a választ elküldi e-mailben.
+Ezt lehet használni napi jelentés kiküldésére.
+'''
 def kerdezz(kerdes):
     global qa_chain, chat_history
     if not chat_history:
@@ -192,7 +195,7 @@ def kerdezz(kerdes):
     felelet = qa_chain.invoke({"question": kerdes, "chat_history": chat_history})
     valasz = felelet.get("answer", "").replace("\\n", "\n").strip()
     print(f"🤖 A gép válaszolt: {valasz}")
-    
+
     # Üzenet küldése emailben
     smtp_server = config.get("smtp_server")
     port = config.get("port")
@@ -227,14 +230,14 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"role": "bot", "message": "⚠️ Assistant not ready yet. Please wait."})
             await websocket.close()
             return
-        
+
         chat_history = [SystemMessage(content=context)]
         await websocket.send_json({"role": "bot", "message": f"👋 Hello! Ask me anything about Wazuh logs.\n(Default date range is {days_range} days.)\nType /help for commands."})
         while True:
             data = await websocket.receive_text()
             if not data.strip():
                 continue
-            
+
             # Commands handling
             if data.lower() == "/help":
                 help_msg = (
@@ -271,7 +274,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 stats = get_stats(logs)
                 await websocket.send_json({"role": "bot", "message": stats})
                 continue
-            
+
             # Regular question
             chat_history.append(HumanMessage(content=data))
             print(f"🧠 Received question: {data}")
@@ -447,7 +450,8 @@ async def get(username: str = Depends(authenticate)):
 def on_startup():
     print("🚀 Starting FastAPI app and loading vector store...")
     setup_chain(past_days=days_range)
-    kerdezz("List ip addresses in the logs!")
+    # A napi jelentés generálását indító kérdés
+    kerdezz("Create a daily report from the logs highlighting significant cybersecurity events or incidents.")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--daemon", action="store_true", help="Run as daemon")
