@@ -1,0 +1,3 @@
+Create a daily report from the logs highlighting significant cybersecurity events or incidents. If you don't find anything significant, conclude the report with: No cybersecurity incidents were detected.
+
+Create a daily report from the logs highlighting significant cybersecurity events or incidents. If you don't find anything in the scope of the question, conclude the report with: No cybersecurity incidents were detected.

@@ -451,7 +451,7 @@ def on_startup():
     print("🚀 Starting FastAPI app and loading vector store...")
     setup_chain(past_days=days_range)
     # A napi jelentés generálását indító kérdés
-    kerdezz("Create a daily report from the logs highlighting significant cybersecurity events or incidents.")
+    kerdezz("Create a daily report from the logs highlighting significant cybersecurity events or incidents. If you don't find anything in the scope of the question, conclude the report with: No cybersecurity incidents were detected.")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--daemon", action="store_true", help="Run as daemon")
